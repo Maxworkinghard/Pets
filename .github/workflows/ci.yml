@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # 测试与校验只用到 Node 内置模块，不需要 npm install
+      - name: 单元测试
+        run: node --test "desktop/test/*.test.js"
+      - name: 校验宠物仓库
+        run: node desktop/scripts/validate-pets.js

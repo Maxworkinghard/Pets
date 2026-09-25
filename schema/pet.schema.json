@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/Maxworkinghard/Pets/main/schema/pet.schema.json",
+  "title": "Pets 宠物清单（pet.json）",
+  "description": "一只宠物 = 一个文件夹：pet.json + 素材。完整说明见 pets/README.md。",
+  "type": "object",
+  "required": ["id", "name", "animations"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "description": "唯一标识：小写字母、数字、- _ .；在仓库里必须与文件夹名相同。"
+    },
+    "name": { "type": "string", "minLength": 1, "description": "显示名称。" },
+    "description": { "type": "string", "description": "一两句话的介绍，显示在卡片和详情里。" },
+    "author": { "type": "string" },
+    "version": { "type": "string", "description": "宠物包版本，建议用语义化版本，如 1.0.0。" },
+    "license": { "type": "string", "description": "素材的授权协议，如 CC-BY-4.0。" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "scale": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 10,
+      "default": 1,
+      "description": "默认显示倍率：素材 1 像素 = 屏幕 scale 个像素（DIP）。用户还可以在设置里整体缩放。"
+    },
+    "pixelated": {
+      "type": "boolean",
+      "default": false,
+      "description": "缩放时使用最近邻采样，适合大颗粒像素画。"
+    },
+    "speed": {
+      "type": "number",
+      "minimum": 0,
+      "default": 50,
+      "description": "行走速度，单位：素材像素/秒。"
+    },
+    "behavior": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "click": { "type": "string", "description": "单击宠物时播放的动画名。" },
+        "doubleClick": { "type": "string", "description": "双击宠物时播放的动画名。" }
+      }
+    },
+    "codex": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "导出到 Codex 时，各个 Codex 状态用哪个动画；没写的按常见命名自动猜，猜不到用 idle。",
+      "properties": {
+        "idle": { "type": "string" },
+        "running-right": { "type": "string" },
+        "running-left": { "type": "string" },
+        "waving": { "type": "string" },
+        "jumping": { "type": "string" },
+        "failed": { "type": "string" },
+        "waiting": { "type": "string" },
+        "running": { "type": "string" },
+        "review": { "type": "string" }
+      }
+    },
+    "animations": {
+      "type": "object",
+      "required": ["idle"],
+      "description": "动画表。约定名：idle（必需）、walk / walk-left / walk-right、drag / drag-left / drag-right、fall、sleep；其它名字都是自定义动作。",
+      "additionalProperties": { "$ref": "#/definitions/animation" }
+    }
+  },
+  "definitions": {
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?![/\\\\])(?![A-Za-z]:)(?!.*(^|[/\\\\])\\.\\.([/\\\\]|$)).+$",
+      "description": "宠物文件夹内的相对路径，区分大小写。"
+    },
+    "pair": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "frame": {
+      "oneOf": [
+        { "$ref": "#/definitions/path" },
+        {
+          "type": "object",
+          "required": ["src"],
+          "additionalProperties": false,
+          "properties": {
+            "src": { "$ref": "#/definitions/path" },
+            "duration": { "type": "number", "exclusiveMinimum": 0, "description": "这一帧显示多少毫秒；不写则按 fps。" },
+            "offset": { "$ref": "#/definitions/pair", "description": "这一帧的额外偏移 [x, y]（素材像素），例如跳起时 y 为负。" }
+          }
+        }
+      ]
+    },
+    "animation": {
+      "type": "object",
+      "additionalProperties": false,
+      "oneOf": [{ "required": ["src"] }, { "required": ["frames"] }, { "required": ["sheet"] }],
+      "properties": {
+        "src": {
+          "$ref": "#/definitions/path",
+          "description": "一个动图（GIF / APNG / 动态 WebP）或静态图片，帧时长取自文件本身。"
+        },
+        "frames": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/frame" },
+          "description": "PNG 帧序列；不同尺寸的帧按「底边居中」对齐。"
+        },
+        "sheet": {
+          "type": "object",
+          "required": ["src", "cell", "count"],
+          "additionalProperties": false,
+          "description": "精灵图中的一行：从 (col, row) 那格开始，向右取 count 格。",
+          "properties": {
+            "src": { "$ref": "#/definitions/path" },
+            "cell": { "$ref": "#/definitions/pair", "description": "每格的 [宽, 高]。" },
+            "row": { "type": "integer", "minimum": 0, "default": 0 },
+            "col": { "type": "integer", "minimum": 0, "default": 0 },
+            "count": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "fps": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 120,
+          "description": "帧率。frames / sheet 默认 8；给 src 设置时会覆盖文件自带的时长。"
+        },
+        "repeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 1,
+          "description": "作为动作播放时重复几遍。"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "description": "有 label 的动画会出现在右键菜单「动作」里，并参与随机动作。"
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0,
+          "description": "随机动作的权重，有 label 时默认 1；0 表示只能手动触发。"
+        },
+        "mirror": {
+          "type": "boolean",
+          "default": true,
+          "description": "只有通用的 walk / drag 生效：向左时是否水平镜像（素材默认朝右）。"
+        },
+        "anchor": {
+          "$ref": "#/definitions/pair",
+          "description": "脚底锚点 [x, y]（素材像素）。默认：画框底边居中，且离底边的距离与 idle 第一帧相同。"
+        },
+        "moveX": {
+          "type": "number",
+          "description": "动画自带水平位移（素材像素）：播完后宠物的位置随之平移，负数向左。"
+        },
+        "stepDistance": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "每移动这么多素材像素换一帧（脚步与位移同步，拖动时也生效）；不写则按时间换帧。"
+        }
+      }
+    }
+  }
+}

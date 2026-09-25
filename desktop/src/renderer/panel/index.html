@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self'; script-src 'self'" />
+    <title>Pets · 桌面宠物</title>
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+          <ellipse cx="16" cy="21.5" rx="7.2" ry="6.2" fill="currentColor" />
+          <ellipse cx="7.4" cy="13.6" rx="2.9" ry="3.6" transform="rotate(-18 7.4 13.6)" fill="currentColor" />
+          <ellipse cx="12.6" cy="8.4" rx="2.9" ry="3.8" transform="rotate(-6 12.6 8.4)" fill="currentColor" />
+          <ellipse cx="19.4" cy="8.4" rx="2.9" ry="3.8" transform="rotate(6 19.4 8.4)" fill="currentColor" />
+          <ellipse cx="24.6" cy="13.6" rx="2.9" ry="3.6" transform="rotate(18 24.6 13.6)" fill="currentColor" />
+        </svg>
+        <div>
+          <div class="brand-name">Pets</div>
+          <div class="brand-sub">桌面宠物</div>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="页面">
+        <button class="tab is-active" role="tab" data-view="library" aria-selected="true">宠物仓库</button>
+        <button class="tab" role="tab" data-view="settings" aria-selected="false">设置</button>
+      </nav>
+      <div class="status" id="status"></div>
+    </header>
+
+    <main class="views">
+      <section class="view is-active" id="view-library" aria-label="宠物仓库">
+        <div class="library">
+          <div class="library-main">
+            <div class="toolbar">
+              <label class="search">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.6" /><path d="M13.2 13.2 17 17" /></svg>
+                <input id="search" type="search" placeholder="搜索名字、标签、描述" autocomplete="off" />
+              </label>
+              <div class="segmented" id="filters" role="group" aria-label="来源筛选"></div>
+              <div class="toolbar-actions">
+                <button class="btn" id="btn-import" title="从文件夹导入一只宠物（文件夹里要有 pet.json）">导入宠物</button>
+                <button class="btn btn-ghost btn-icon" id="btn-folder" title="打开「我的宠物」文件夹" aria-label="打开「我的宠物」文件夹">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2.8 6.2a1.6 1.6 0 0 1 1.6-1.6h3.4l1.7 1.9h6.1a1.6 1.6 0 0 1 1.6 1.6v6.5a1.6 1.6 0 0 1-1.6 1.6H4.4a1.6 1.6 0 0 1-1.6-1.6z" /></svg>
+                </button>
+                <button class="btn btn-ghost btn-icon" id="btn-reload" title="重新扫描宠物文件夹" aria-label="重新扫描">
+                  <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 10a6 6 0 1 1-1.8-4.3" /><path d="M16.2 3.2v3.6h-3.6" /></svg>
+                </button>
+              </div>
+            </div>
+            <div class="grid" id="grid"></div>
+            <div class="problems" id="problems"></div>
+          </div>
+          <aside class="detail" id="detail" aria-label="宠物详情"></aside>
+        </div>
+      </section>
+
+      <section class="view" id="view-settings" aria-label="设置">
+        <div class="settings" id="settings"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="panel.js"></script>
+  </body>
+</html>
