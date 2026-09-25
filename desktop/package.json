@@ -1,0 +1,21 @@
+{
+  "name": "pets-desktop",
+  "productName": "Pets",
+  "version": "0.1.0",
+  "description": "Pets 桌面端：从宠物仓库里挑一只，放到桌面上陪你。",
+  "private": true,
+  "type": "module",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --pets-debug",
+    "test": "node --test \"test/*.test.js\"",
+    "validate": "node scripts/validate-pets.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "electron": "^44.4.5"
+  }
+}

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+out/
+*.log
+.DS_Store
+Thumbs.db
+
+# 宠物包只放在本地，不进 Git（仓库里只保留格式说明 pets/README.md）
+pets/*/
