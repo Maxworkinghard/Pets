@@ -293,12 +293,19 @@ export function computeLayout(pet, anims, scale) {
   for (const [name, a] of Object.entries(anims)) {
     const [ax, ay] = pet.animations[name].anchor ?? [a.box.w / 2, a.groundY()];
     anchors[name] = [ax, ay];
-    for (const f of a.frames) {
-      half = Math.max(half, ax - f.x, f.x + f.w - ax); // 左右对称，镜像后也放得下
-      up = Math.max(up, ay - f.y);
-      down = Math.max(down, f.y + f.h - ay);
+    for (let i = 0; i < a.frames.length; i++) {
+      const f = a.frames[i];
+      // 按「看得见的部分」算窗口范围，而不是整帧画框：画框里常有整片透明留白，
+      // 一旦各动画的脚底锚点不同，这些留白就会在脚下方堆出一块空白，
+      // 窗口跟着变大、还会盖住任务栏或伸出屏幕外，看起来就像「点了没反应」。
+      const b = opaqueBounds(a, i) ?? { x0: f.x, y0: f.y, x1: f.x + f.w, y1: f.y + f.h };
+      // 左右对称，镜像后也放得下
+      half = Math.max(half, ax - b.x0, b.x1 - ax);
+      up = Math.max(up, ay - b.y0);
+      down = Math.max(down, b.y1 - ay);
     }
   }
+  down = Math.max(down, 0);
   const [iax, iay] = anchors.idle;
   return {
     scale,

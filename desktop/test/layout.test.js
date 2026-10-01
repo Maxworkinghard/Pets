@@ -106,6 +106,38 @@ test('同一只宠物各动画角色高低不同时，脚底仍然落在同一�
   }
 });
 
+test('窗口按看得见的部分算高度，不会在脚下方堆出空白死区', () => {
+  // 画框 180×300，但 walk 的角色只画在画框上半部分（y 10..220），
+  // 下方 80px 全是透明留白。窗口高度只应覆盖不透明内容。
+  const pet = { animations: { idle: {}, walk: {} } };
+  const anims = {
+    idle: anim(180, 300, [[70, 100, 110, 300]]), // 脚在 300，头顶 100
+    walk: anim(180, 300, [[60, 10, 120, 220]]), // 脚在 220，头顶 10
+  };
+  const layout = computeLayout(pet, anims, 1);
+  // 内容最高处：walk 头顶 10（锚点 220 → up = 210）；idle 头顶 100（锚点 300 → up = 200）
+  assert.equal(layout.stage.ay, 210);
+  // 内容最低处就是所有动画的脚底（= 各自锚点），所以脚下方不该有任何空间
+  const feet = layout.stage.ay;
+  assert.equal(layout.stage.h, feet);
+});
+
+test('帧画框的透明留白不会被算进窗口尺寸', () => {
+  // 两个动画画框同样高，但角色只占中间一小条；窗口应贴合内容
+  const pet = { animations: { idle: {}, walk: {} } };
+  const anims = {
+    idle: anim(100, 400, [[40, 300, 60, 380]]),
+    walk: anim(100, 400, [[40, 20, 60, 100]]),
+  };
+  const layout = computeLayout(pet, anims, 1);
+  assert.equal(layout.anchors.idle[1], 380);
+  assert.equal(layout.anchors.walk[1], 100);
+  // up = max(380-300, 100-20) = 80 ; down = 0
+  assert.equal(layout.stage.ay, 80);
+  // 高度 = up + down = 80（若误用整帧画框会得到 400）
+  assert.ok(layout.stage.h < 200, '窗口高度应该贴合内容而不是整帧画框，实际 ' + layout.stage.h);
+});
+
 test('显式写 anchor 时仍然优先用 pet.json 里的值', () => {
   const pet = { animations: { idle: {}, walk: { anchor: [90, 250] } } };
   const anims = {
