@@ -75,7 +75,9 @@ function petFit(record) {
       record.key,
       getAnim(record, 'idle').then((idle) => {
         const b = opaqueBounds(idle, 0) ?? { x0: 0, y0: 0, x1: idle.box.w, y1: idle.box.h };
-        return { padBottom: idle.box.h - b.y1, bw: b.x1 - b.x0, bh: b.y1 - b.y0, cx: (b.x0 + b.x1) / 2 - idle.box.w / 2 };
+        // 脚底基线：各动画自己「最低帧」的不透明底边，和桌宠窗口里 computeLayout 的算法一致，
+        // 这样预览里切动画也不会上下跳。
+        return { bw: b.x1 - b.x0, bh: b.y1 - b.y0, cx: (b.x0 + b.x1) / 2 - idle.box.w / 2 };
       }),
     );
   }
@@ -126,7 +128,7 @@ class Preview {
     const pet = this.record.pet;
     const { fit } = this;
     const scale = Math.min((W * 0.86) / fit.bw, (H * this.fill) / fit.bh, pet.pixelated ? 4 : 1.5);
-    const anchor = pet.animations[this.name].anchor ?? [a.box.w / 2, a.box.h - fit.padBottom];
+    const anchor = pet.animations[this.name].anchor ?? [a.box.w / 2, a.groundY()];
     const ctx = this.ctx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);

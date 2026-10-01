@@ -67,6 +67,25 @@ class Anim {
     return { ...this.source(i), release() {} };
   }
 
+  /**
+   * 这个动画里角色踩得最低的那一帧，其不透明像素的底边（画框坐标）。
+   * 取「最低帧」而不是某一固定帧，是为了让脚底始终落在地面上：
+   * 同一只宠物的画框虽然一样大，但不同动画的角色在画框里可高可低，
+   * 按单个帧定的锚点会把整段动画抬高或压低，切动画时就会「往上弹一下」。
+   * 子类可以预先算好 _groundY（动图在解码时顺手量），这里只做兜底。结果缓存。
+   */
+  groundY() {
+    if (this._groundY === undefined) {
+      let low = -Infinity;
+      for (let i = 0; i < this.frames.length; i++) {
+        const b = opaqueBounds(this, i);
+        if (b) low = Math.max(low, b.y1);
+      }
+      this._groundY = Number.isFinite(low) ? low : this.box.h;
+    }
+    return this._groundY;
+  }
+
   close() {}
 }
 
@@ -120,12 +139,18 @@ class DecodedAnim extends Anim {
     const count = decoder.tracks.selectedTrack?.frameCount ?? 1;
     const frames = [];
     let first = null;
-    // 先完整过一遍，拿到每帧时长；只保留第一帧，其余按需再解码
+    let ground = -Infinity;
+    // 先完整过一遍，拿到每帧时长；只保留第一帧，其余按需再解码。
+    // 顺手量一下每帧的不透明底边（这里帧已经在手上，不额外花解码成本），
+    // 得到这个动画的「脚底」位置：切动画时脚才不会跳。
     for (let i = 0; i < count; i++) {
       const { image } = await decoder.decode({ frameIndex: i });
       const us = image.duration;
       const duration = def.fps ? 1000 / def.fps : us ? Math.max(20, us / 1000) : count > 1 ? 100 : 1000;
-      frames.push({ duration, w: image.displayWidth, h: image.displayHeight, x: 0, y: 0 });
+      const frame = { duration, w: image.displayWidth, h: image.displayHeight, x: 0, y: 0 };
+      frames.push(frame);
+      const bottom = imageBottom(image, frame);
+      if (bottom !== null) ground = Math.max(ground, bottom);
       if (i === 0) first = image;
       else image.close();
     }
@@ -134,6 +159,7 @@ class DecodedAnim extends Anim {
     anim.cache = new Map([[0, first]]);
     anim.pending = new Set();
     anim.shown = 0;
+    if (Number.isFinite(ground)) anim._groundY = ground;
     return anim;
   }
 
@@ -209,6 +235,21 @@ export async function loadPetAnimations(pet, base, onError = () => {}) {
   return anims;
 }
 
+/** 单个已解码帧绘到自己的画框后，不透明像素的底边（画框坐标）；整帧透明时返回 null。 */
+function imageBottom(image, frame) {
+  const w = frame.w;
+  const h = frame.h;
+  if (!w || !h) return null;
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0, w, h);
+  const { data } = ctx.getImageData(0, 0, w, h);
+  for (let y = h - 1; y >= 0; y--) {
+    for (let x = 0; x < w; x++) if (data[(y * w + x) * 4 + 3] > ALPHA_HIT) return y + 1 + frame.y;
+  }
+  return null;
+}
+
 /** 第 i 帧不透明像素的包围盒（画框坐标）。 */
 export function opaqueBounds(anim, i = 0, src = anim.source(i)) {
   if (!src) return null;
@@ -245,13 +286,12 @@ export function opaqueBounds(anim, i = 0, src = anim.source(i)) {
 export function computeLayout(pet, anims, scale) {
   const idle = anims.idle;
   const ib = opaqueBounds(idle, 0) ?? { x0: 0, y0: 0, x1: idle.box.w, y1: idle.box.h };
-  const padBottom = idle.box.h - ib.y1;
   const anchors = {};
   let half = 0;
   let up = 0;
   let down = 0;
   for (const [name, a] of Object.entries(anims)) {
-    const [ax, ay] = pet.animations[name].anchor ?? [a.box.w / 2, a.box.h - padBottom];
+    const [ax, ay] = pet.animations[name].anchor ?? [a.box.w / 2, a.groundY()];
     anchors[name] = [ax, ay];
     for (const f of a.frames) {
       half = Math.max(half, ax - f.x, f.x + f.w - ax); // 左右对称，镜像后也放得下
