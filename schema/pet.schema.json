@@ -41,8 +41,8 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "click": { "type": "string", "description": "单击宠物时播放的动画名。" },
-        "doubleClick": { "type": "string", "description": "双击宠物时播放的动画名。" }
+        "click": { "type": "string", "description": "单击宠物时第一个播放的动画名；继续点会依次轮换其它带 label 的动作，转一圈再从头来。" },
+        "doubleClick": { "type": "string", "description": "排在 behavior.click 后面的第二个动作；双击和单击等价，只是再切一个。" }
       }
     },
     "codex": {
@@ -140,7 +140,7 @@
         "label": {
           "type": "string",
           "minLength": 1,
-          "description": "有 label 的动画会出现在右键菜单「动作」里，并参与随机动作。"
+          "description": "有 label 的动画会出现在右键菜单「动作」里、参与单击轮换，并在开启「随机动作」后参与随机挑选。"
         },
         "weight": {
           "type": "number",

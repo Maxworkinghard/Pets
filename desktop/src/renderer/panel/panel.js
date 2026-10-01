@@ -51,6 +51,9 @@ const els = {
 };
 
 const animLabel = (pet, name) => pet.animations[name]?.label ?? SLOT_LABELS[name] ?? name;
+// 单击能点出来的动作：带 label 的动作，去掉待机与移动（和 brain.js 的单击循环一致）
+const NOT_AN_ACTION = new Set(['idle', 'walk', 'walk-left', 'walk-right', 'drag', 'drag-left', 'drag-right', 'fall']);
+const clickableActions = (pet) => pet.actions.filter((n) => !NOT_AN_ACTION.has(n));
 const validRecords = () => state.records.filter((r) => r.pet);
 const byKey = (key) => state.records.find((r) => r.key === key);
 const isLive = (key) => !!state.app?.visible && state.app.activeKey === key;
@@ -247,11 +250,11 @@ let detailPreview = null;
 
 function interactionText(pet) {
   const parts = [];
-  if (pet.behavior.click) parts.push(`单击「${animLabel(pet, pet.behavior.click)}」`);
-  if (pet.behavior.doubleClick) parts.push(`双击「${animLabel(pet, pet.behavior.doubleClick)}」`);
-  const walks = ['walk', 'walk-left', 'walk-right'].some((n) => pet.animations[n]);
-  const moves = Object.values(pet.animations).some((a) => a.moveX);
-  parts.push(walks ? '会自己走动' : moves ? '会遁地移动' : '待在原地');
+  const acts = clickableActions(pet);
+  if (pet.behavior.click) parts.push(`单击依次做动作，从「${animLabel(pet, pet.behavior.click)}」开始`);
+  else if (acts.length) parts.push('单击依次做动作');
+  if (acts.length) parts.push(`共 ${acts.length} 个动作可以点出来`);
+  parts.push('不会自己走动，没人管的时候就待机');
   return parts.join('，');
 }
 
@@ -429,8 +432,8 @@ function renderSettings() {
         <div class="setting-text"><div class="setting-title">大小</div><div class="setting-desc">在每只宠物默认大小的基础上整体缩放</div></div>
         <div class="range"><input type="range" id="set-size" min="0.5" max="2" step="0.05" value="${s.size}" aria-label="宠物大小"><output id="size-out">${Math.round(s.size * 100)}%</output></div>
       </div>
-      ${toggle('wander', '自由走动', '空闲时在屏幕底部走来走去；没有走路动画的宠物会待在原地')}
-      ${toggle('randomActions', '随机动作', '空闲时偶尔做个动作、打个盹')}
+      ${toggle('wander', '自由走动', '空闲时在屏幕底部走来走去。默认关闭：没人管的时候就待机')}
+      ${toggle('randomActions', '随机动作', '空闲时偶尔做个动作、打个盹。默认关闭：没人管的时候就待机')}
       ${toggle('gravity', '重力', '松手后落回任务栏上；关掉后放在哪儿就停在哪儿')}
       ${toggle('alwaysOnTop', '始终置顶', '宠物显示在其它窗口上方')}
     </section>

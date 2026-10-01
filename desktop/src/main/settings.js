@@ -6,8 +6,8 @@ export const DEFAULT_SETTINGS = {
   activePet: null, // 当前桌宠的 key，如 "bundled/my-cat"
   petVisible: true,
   size: 1, // 在宠物自身 scale 之上的整体缩放
-  wander: true, // 自由走动
-  randomActions: true, // 空闲时随机做动作
+  wander: false, // 自由走动（默认关：无交互时保持待机）
+  randomActions: false, // 空闲时随机做动作（默认关：无交互时保持待机）
   gravity: true, // 松手后落到任务栏上
   alwaysOnTop: true,
   launchAtLogin: false,

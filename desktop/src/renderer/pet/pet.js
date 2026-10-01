@@ -106,7 +106,7 @@ function tick() {
   }
 }
 
-// ---------------------------------------------------------------- 鼠标：像素级点击穿透、拖动、单击/双击
+// ---------------------------------------------------------------- 鼠标：像素级点击穿透、拖动、单击切换动作
 
 function hit(clientX, clientY) {
   const r = Math.max(1, Math.round(2 * dpr)); // 边缘放宽几像素，细小部位也好抓
@@ -131,20 +131,11 @@ function setIgnore(value) {
 }
 
 let press = null;
-let clickTimer = null;
 
+// 单击：立刻切到下一个动作。不做双击判定——等待 280ms 会让每次切换都发涩；
+// brain 里的双击本来也只是「再切一个」。
 function onClick() {
-  if (!pet.behavior.doubleClick) return brain.click();
-  if (clickTimer) {
-    clearTimeout(clickTimer);
-    clickTimer = null;
-    brain.doubleClick();
-  } else {
-    clickTimer = setTimeout(() => {
-      clickTimer = null;
-      brain.click();
-    }, 280);
-  }
+  brain.click();
 }
 
 function endPress(cancelled) {

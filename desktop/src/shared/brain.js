@@ -2,6 +2,9 @@
 // 坐标单位是屏幕 DIP；(x, y) 是宠物「脚底锚点」在屏幕上的位置。
 //
 // 模式：idle 待机 → walk 走动 / action 动作 / sleep 睡觉；drag 被拖着；fall 松手后下落。
+// 默认不会自己走动也不会随机做动作（settings 里两项默认关闭），没人管的时候就是待机；
+// 打开「自由走动」「随机动作」后才会自己走 / 自己找事做。
+// 点击宠物按 actionCycle 依次切换动作，播完回到待机。
 
 export const TUNING = {
   gravity: 2600, // 下落加速度 DIP/s²
@@ -17,6 +20,9 @@ export const TUNING = {
 
 // 这些动画由状态机自己驱动，不会被当成「随机动作」挑中
 const LOCOMOTION = new Set(['idle', 'walk', 'walk-left', 'walk-right', 'drag', 'drag-left', 'drag-right', 'fall', 'sleep']);
+
+// 点击循环里不接受的动画：纯待机与移动。sleep 不在其中——它是个看得见的动作，可以点。
+const NOT_AN_ACTION = new Set(['idle', 'walk', 'walk-left', 'walk-right', 'drag', 'drag-left', 'drag-right', 'fall']);
 
 const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, v)));
 
@@ -35,7 +41,7 @@ export class PetBrain {
    * @param {object} o
    * @param {Record<string, {durationMs:number, repeat?:number, weight?:number, label?:string, moveX?:number, mirror?:boolean}>} o.anims
    *        动画元数据：durationMs 为播一遍的时长；moveX 已换算成 DIP
-   * @param {{click?:string, doubleClick?:string}} [o.behavior]
+   * @param {{click?:string, doubleClick?:string}} [o.behavior] click 是单击动作循环里的第一个动作
    * @param {number} o.speed 行走速度 DIP/s
    * @param {{left:number, right:number, top:number}} o.body 身体相对脚底锚点向左/右/上的范围（DIP）
    * @param {{x:number, y:number, width:number, height:number}[]} o.areas 各显示器的工作区（DIP）
@@ -46,8 +52,9 @@ export class PetBrain {
   constructor(o) {
     this.random = o.random ?? Math.random;
     this.behavior = o.behavior ?? {};
-    this.settings = { wander: true, randomActions: true, gravity: true, ...o.settings };
+    this.settings = { wander: false, randomActions: false, gravity: true, ...o.settings };
     this.areas = o.areas;
+    this.cycleIndex = -1;
     this.setMetrics(o);
     this.x = o.position.x;
     this.y = o.position.y;
@@ -69,6 +76,7 @@ export class PetBrain {
     this.speed = speed;
     this.body = body;
     if (this.anim && !this.anims[this.anim]) this.toIdle();
+    this.buildActionCycle();
   }
 
   setAreas(areas) {
@@ -123,12 +131,21 @@ export class PetBrain {
     }
   }
 
+  /** 单击：切到动作循环里的下一个动作（从 behavior.click 开始）。 */
   click() {
-    this.react(this.behavior.click);
+    if (this.mode === 'drag' || this.mode === 'fall') return;
+    if (this.mode === 'sleep') this.toIdle();
+    if (this.actionCycle.length) {
+      this.cycleIndex = (this.cycleIndex + 1) % this.actionCycle.length;
+      this.play(this.actionCycle[this.cycleIndex]);
+    } else if (this.behavior.click) {
+      this.play(this.behavior.click);
+    }
   }
 
+  /** 双击等价于再点一次：继续往后切一个动作。 */
   doubleClick() {
-    this.react(this.behavior.doubleClick ?? this.behavior.click);
+    this.click();
   }
 
   /** 播放指定动画（右键菜单 / 外部指令）。 */
@@ -297,20 +314,17 @@ export class PetBrain {
     this.setAnim('sleep');
   }
 
-  react(name) {
-    if (this.mode === 'drag' || this.mode === 'fall') return;
-    if (this.mode === 'sleep') this.toIdle();
-    if (name && this.anims[name]) this.play(name);
-  }
-
-  /** 待机结束后决定下一步：继续待机 / 走一走 / 做个动作 / 睡一觉。 */
+  /**
+   * 待机结束后决定下一步：继续待机 / 做个动作 / 睡一觉；只有在设置里打开「自由走动」才走动。
+   * 默认关着，所以没人管的时候宠物就待在原地。
+   */
   decideNext() {
     const options = [['idle', 3]];
     if (this.settings.wander && this.canWalk()) options.push(['walk', 4]);
     if (this.settings.randomActions) {
       const acts = this.actionCandidates();
       const total = acts.reduce((s, [, w]) => s + w, 0);
-      for (const [name, w] of acts) options.push([`action:${name}`, (3 * w) / total]);
+      if (total > 0) for (const [name, w] of acts) options.push([`action:${name}`, (3 * w) / total]);
       if (this.anims.sleep) options.push(['sleep', 0.5]);
     }
     const pick = weightedPick(options, this.random);
@@ -318,6 +332,23 @@ export class PetBrain {
     else if (pick === 'sleep') this.startSleep();
     else if (pick.startsWith('action:')) this.startAction(pick.slice(7));
     else this.toIdle();
+  }
+
+  /**
+   * 单击时依次播放的动作表：先 behavior.click，再 behavior.doubleClick，
+   * 然后按清单顺序补上所有带 label 的动作（和右键菜单「动作」里的一致），去重。
+   */
+  buildActionCycle() {
+    const out = [];
+    const add = (name) => {
+      if (!name || NOT_AN_ACTION.has(name) || !this.anims[name] || out.includes(name)) return;
+      out.push(name);
+    };
+    add(this.behavior.click);
+    add(this.behavior.doubleClick);
+    for (const [name, a] of Object.entries(this.anims)) if (a.label) add(name);
+    this.actionCycle = out;
+    if (this.cycleIndex >= out.length) this.cycleIndex = -1;
   }
 
   /** 可以被随机挑中的动作：有 label、权重 > 0；带位移的动作只在允许走动且不会出界时才算。 */

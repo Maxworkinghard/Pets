@@ -37,7 +37,7 @@ pets/
 {
   "id": "my-cat",
   "name": "小猫",
-  "description": "会散步、会打招呼，双击趴下睡一会儿。",
+  "description": "点一下会挨个打招呼、趴下睡一会儿。",
   "tags": ["像素", "猫"],
   "scale": 0.6,
   "speed": 90,
@@ -64,7 +64,8 @@ pets/
 | `scale` |  | 默认显示倍率（素材 1 像素 = 屏幕 `scale` 个像素），默认 1。用户还能在设置里整体缩放 |
 | `pixelated` |  | `true` 时缩放用最近邻采样，适合大颗粒像素画 |
 | `speed` |  | 走路速度，素材像素/秒，默认 50 |
-| `behavior.click` / `behavior.doubleClick` |  | 单击 / 双击宠物时播放的动画名 |
+| `behavior.click` |  | 单击宠物时**第一个**播放的动作；继续点会依次轮换其它带 `label` 的动作，转一圈再从头来 |
+| `behavior.doubleClick` |  | 排在 `behavior.click` 后面的第二个动作（双击和单击等价，只是再切一个） |
 | `codex` |  | 导入到 Codex 时各状态用哪个动画，见下文 |
 | `author` `version` `license` |  | 作者、版本、素材授权 |
 
@@ -84,7 +85,7 @@ pets/
 | --- | --- |
 | `fps` | 帧率；`frames` / `sheet` 默认 8 |
 | `repeat` | 作为动作播放时重复几遍，默认 1 |
-| `label` | 写了 `label` 的动画会出现在右键菜单「动作」里，并参与随机动作 |
+| `label` | 写了 `label` 的动画会出现在右键菜单「动作」里、参与单击轮换，并在开启「随机动作」后参与随机挑选 |
 | `weight` | 随机动作的权重（有 `label` 时默认 1），`0` 表示只能手动触发 |
 | `mirror` | 只对通用的 `walk` / `drag` 生效：向左走时是否水平镜像，默认 `true`（素材默认朝右） |
 | `anchor` | 脚底锚点 `[x, y]`，见下文 |
@@ -96,10 +97,10 @@ pets/
 | 名字 | 什么时候播放 | 没有这个动画时 |
 | --- | --- | --- |
 | `idle` | 待机（必需） | — |
-| `walk-right` / `walk-left` / `walk` | 自由走动；拖着宠物水平移动时 | 不会自己走 |
+| `walk-right` / `walk-left` / `walk` | 拖着宠物水平移动时；在设置里打开「自由走动」后也会自己走 | 不会自己走 |
 | `drag-right` / `drag-left` / `drag` | 被拖动时 | 水平拖动时用走路动画，停住时用 `idle` |
 | `fall` | 松手后落回任务栏 | 用拖动的动画 |
-| `sleep` | 偶尔打个盹，单击叫醒 | 不睡觉 |
+| `sleep` | 开启「随机动作」后偶尔打个盹；单击叫醒，也参与单击轮换 | 不睡觉 |
 
 其它名字都是**自定义动作**，比如 `wave`、`smoke-sit`、`ultimate-acid`。
 
@@ -119,8 +120,8 @@ Codex 宠物（`pet.json` 里有 `spritesheetPath`，精灵图为 8 列 × 9 行
 | --- | --- | --- |
 | `idle` | `idle` | 待机 |
 | `running-right` / `running-left` | `walk-right` / `walk-left` | 走动、拖动 |
-| `waving` | `waving` | 挥手（单击） |
-| `jumping` | `jumping` | 跳一跳（双击） |
+| `waving` | `waving` | 挥手；单击轮换的第一个 |
+| `jumping` | `jumping` | 跳一跳；单击轮换的第二个 |
 | `failed` `waiting` `running` `review` | 同名 | 右键菜单里的动作 |
 
 ## 导入到 Codex

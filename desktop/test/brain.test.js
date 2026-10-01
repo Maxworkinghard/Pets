@@ -89,6 +89,14 @@ test('关闭自由走动后，不会选择走动', () => {
   }
 });
 
+test('单击切换动作是立刻生效的，不需要等双击判定', () => {
+  const b = makeBrain();
+  b.click();
+  assert.equal(b.view.anim, 'wave');
+  b.click();
+  assert.equal(b.view.anim, 'burrow');
+});
+
 test('动作播放 durationMs × repeat 后回到待机', () => {
   const b = makeBrain();
   b.play('wave');
@@ -107,20 +115,63 @@ test('带 moveX 的动作结束后，位置平移', () => {
   assert.equal(b.view.x, 400);
 });
 
-test('会出界的位移动作不会被随机挑中', () => {
-  const b = makeBrain({ position: { x: 200, y: 700 } });
+test('会出界的位移动作不会被随机挑中（允许走动时才算）', () => {
+  // 开自由走动：位移动作才参与随机挑选，出界时排除
+  const b = makeBrain({ position: { x: 200, y: 700 }, settings: { wander: true } });
   assert.deepEqual(b.actionCandidates().map(([n]) => n), ['wave']);
   b.x = 800;
   assert.deepEqual(b.actionCandidates().map(([n]) => n), ['wave', 'burrow']);
+  // 关自由走动（现在的默认）：位移动作不参与随机挑选
+  const c = makeBrain({ position: { x: 800, y: 700 } });
+  assert.deepEqual(c.actionCandidates().map(([n]) => n), ['wave']);
 });
 
-test('单击播放 behavior.click；睡觉时单击会先醒来', () => {
+test('单击从 behavior.click 开始依次切换动作；睡觉时单击会先醒来', () => {
   const b = makeBrain();
-  b.play('sleep');
-  assert.equal(b.view.mode, 'sleep');
+  // 动作循环：behavior.click → behavior.doubleClick → 其余带 label 的动作
+  assert.deepEqual(b.actionCycle, ['wave', 'burrow', 'sleep']);
   b.click();
   assert.equal(b.view.mode, 'action');
   assert.equal(b.view.anim, 'wave');
+  b.click();
+  assert.equal(b.view.anim, 'burrow');
+  b.click();
+  assert.equal(b.view.anim, 'sleep');
+  b.click(); // 循环回到第一个
+  assert.equal(b.view.anim, 'wave');
+});
+
+test('动作循环跳过会出界之前也不会漏掉动作；没有 label 的动画不进循环', () => {
+  const b = makeBrain();
+  b.actionCycle = [];
+  b.buildActionCycle();
+  assert.ok(!b.actionCycle.includes('idle'));
+  assert.ok(!b.actionCycle.includes('walk'));
+  assert.deepEqual(b.actionCycle, ['wave', 'burrow', 'sleep']);
+});
+
+test('关掉自由走动时，待机只会选待机 / 动作 / 睡觉，不会走动', () => {
+  const b = makeBrain({ settings: { wander: false, randomActions: true }, random: () => 0.99 });
+  for (let i = 0; i < 50; i++) {
+    b.decideNext();
+    assert.notEqual(b.view.mode, 'walk');
+  }
+});
+
+test('打开自由走动后，待机会挑中走动（设置仍然有效）', () => {
+  // random 返回 0.5 在 idle(3) / walk(4) / … 里落在 walk 上
+  const b = makeBrain({ settings: { wander: true }, random: () => 0.5 });
+  b.decideNext();
+  assert.equal(b.view.mode, 'walk');
+});
+
+test('默认不随机做动作、不自动走动：无交互时一直待机', () => {
+  const b = makeBrain({ settings: undefined, random: () => 0.5 });
+  for (let i = 0; i < 50; i++) {
+    b.decideNext();
+    assert.equal(b.view.mode, 'idle');
+    assert.equal(b.view.anim, 'idle');
+  }
 });
 
 test('拖动：跟随指针，水平拖动时播放对应方向的走路动画，停住后回到待机姿势', () => {
@@ -172,8 +223,8 @@ test('随机决策按权重挑选', () => {
   const b = makeBrain({ random: () => 0 });
   b.decideNext();
   assert.equal(b.view.mode, 'idle');
-  // 返回接近 1：挑最后一个选项（睡觉）
-  const c = makeBrain({ random: seq(0.5, 0.999) });
+  // 返回接近 1：挑最后一个选项（睡觉）。随机动作默认关闭，这里显式打开
+  const c = makeBrain({ random: seq(0.5, 0.999), settings: { randomActions: true } });
   c.decideNext();
   assert.equal(c.view.mode, 'sleep');
 });
